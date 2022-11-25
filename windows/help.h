@@ -77,6 +77,8 @@ typedef const char *HelpCtx;
 #define WINHELP_CTX_appearance_title "config-title"
 #define WINHELP_CTX_appearance_hidemouse "config-mouseptr"
 #define WINHELP_CTX_appearance_border "config-winborder"
+#define WINHELP_CTX_appearance_transparency "appearance.transparency:config-transparency"
+#define WINHELP_CTX_appearance_opaquefocus "appearance.opaquefocus:config-opaquefocus"
 #define WINHELP_CTX_connection_termtype "config-termtype"
 #define WINHELP_CTX_connection_termspeed "config-termspeed"
 #define WINHELP_CTX_connection_username "config-username"

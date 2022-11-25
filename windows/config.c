@@ -99,6 +99,21 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
         }
     }
 
+    s = ctrl_getset(b, "Window/Appearance", "trans", "Transparency");
+    ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 4, 
+              HELPCTX(appearance_transparency), 
+              conf_radiobutton_handler, 
+              I(CONF_transparency),
+              "Off", NO_SHORTCUT, I(TRANS_OFF),
+              "Low", NO_SHORTCUT, I(TRANS_LOW),
+              "Medium", NO_SHORTCUT, I(TRANS_MEDIUM),
+              "High", NO_SHORTCUT, I(TRANS_HIGH));
+
+    ctrl_checkbox(s, "Opaque when focused", NO_SHORTCUT, 
+          HELPCTX(appearance_opaquefocus),
+          conf_checkbox_handler,
+          I(CONF_opaque_when_focused));
+
     /*
      * Windows has the AltGr key, which has various Windows-
      * specific options.

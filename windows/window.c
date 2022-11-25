@@ -31,6 +31,19 @@
 #include <richedit.h>
 #include <mmsystem.h>
 
+#include <winbase.h>
+#include <wingdi.h>
+#include <uxtheme.h>		       /* for struct MARGINS */
+
+#if WINVER < 0x500 || _WIN32_WINNT < 0x0501
+typedef struct _MARGINS {
+  int cxLeftWidth;
+  int cxRightWidth;
+  int cyTopHeight;
+  int cyBottomHeight;
+} MARGINS, *PMARGINS;
+#endif
+
 /* From MSDN: In the WM_SYSCOMMAND message, the four low-order bits of
  * wParam are used by Windows, and should be masked off, so we shouldn't
  * attempt to store information in them. Hence all these identifiers have
@@ -283,6 +296,46 @@ static const SeatVtable win_seat_vt = {
     .get_cursor_position = win_seat_get_cursor_position,
 };
 
+static BOOL (WINAPI *pSetLayeredWindowAttributes)(HWND,COLORREF,BYTE,DWORD);
+static HRESULT (WINAPI *pDwmIsCompositionEnabled)(BOOL *);
+static HRESULT (WINAPI *pDwmExtendFrameIntoClientArea)(HWND, const MARGINS *);
+
+static void load_funcs(void)
+{
+    HMODULE user;
+    HMODULE dwm;
+    user = LoadLibrary("user32");
+    pSetLayeredWindowAttributes =
+        (void *)GetProcAddress(user, "SetLayeredWindowAttributes");
+
+    dwm = LoadLibrary("dwmapi");
+    pDwmIsCompositionEnabled =
+        (void *)GetProcAddress(dwm, "DwmIsCompositionEnabled");
+    pDwmExtendFrameIntoClientArea =
+        (void *)GetProcAddress(dwm, "DwmExtendFrameIntoClientArea");
+}
+
+static void enable_glass(WinGuiSeat *wgs, BOOL enabled)
+{
+	MARGINS m = {enabled ? -1 : 0, 0, 0, 0};
+    if (pDwmExtendFrameIntoClientArea)
+        pDwmExtendFrameIntoClientArea(wgs->term_hwnd, &m);
+}
+
+static void update_transparency(WinGuiSeat *wgs)
+{
+    BOOL opaque = conf_get_bool(wgs->conf, CONF_opaque_when_focused) && wgs->term->has_focus;
+    if (pSetLayeredWindowAttributes) {
+        int trans = max(conf_get_int(wgs->conf, CONF_transparency), 0);
+        SetWindowLong(wgs->term_hwnd, GWL_EXSTYLE, trans ? WS_EX_LAYERED : 0);
+        if (trans) {
+            unsigned char alpha = opaque ? 255 : 255 - 16 * trans;
+            pSetLayeredWindowAttributes(wgs->term_hwnd, 0, alpha, LWA_ALPHA);
+        }
+    }
+    enable_glass(wgs, conf_get_int(wgs->conf, CONF_transparency) < 0 && !is_full_screen(wgs) && !opaque);
+}
+
 static void start_backend(WinGuiSeat *wgs)
 {
     const struct BackendVtable *vt;
@@ -457,6 +510,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     hprev = prev;
 
     sk_init();
+    load_funcs();
 
     init_common_controls();
 
@@ -1777,6 +1831,8 @@ static void reset_window(WinGuiSeat *wgs, int reinit)
         init_fonts(wgs, 0, 0);
     }
 
+    update_transparency(wgs);
+
     /* Oh, looks like we're minimised */
     if (win_width == 0 || win_height == 0)
         return;
@@ -2866,6 +2922,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         flash_window(wgs, 0);               /* stop */
         wgs->compose_state = 0;
         term_update(wgs->term);
+        update_transparency(wgs);
         break;
       case WM_KILLFOCUS:
         show_mouseptr(wgs, true);
@@ -2873,6 +2930,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         DestroyCaret();
         wgs->caret_x = wgs->caret_y = -1; /* ensure caret replaced next time */
         term_update(wgs->term);
+        update_transparency(wgs);
         break;
       case WM_ENTERSIZEMOVE:
 #ifdef RDB_DEBUG_PATCH
@@ -3424,13 +3482,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                                    control_pressed, is_alt_pressed());
                     } /* else: not sure when this can fail */
                 } else if (control_pressed) {
-                    conf_get_fontspec(conf, CONF_font)->height += MBT_WHEEL_UP == b ? 1 : -1;
+                    conf_get_fontspec(wgs->conf, CONF_font)->height += MBT_WHEEL_UP == b ? 1 : -1;
                     // short version of IDM_RECONF's reconfig:
                     term_size(wgs->term,
-                            conf_get_int(conf, CONF_height),
-                            conf_get_int(conf, CONF_width),
-                            conf_get_int(conf, CONF_savelines));
-                    reset_window(2);
+                            conf_get_int(wgs->conf, CONF_height),
+                            conf_get_int(wgs->conf, CONF_width),
+                            conf_get_int(wgs->conf, CONF_savelines));
+                    reset_window(wgs, 2);
                 } else {
                     /* trigger a scroll */
                     term_scroll(wgs->term, 0,

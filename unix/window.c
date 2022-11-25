@@ -174,6 +174,8 @@ struct GtkFrontend {
     /* Cached things out of conf that we refer to a lot */
     int bold_style;
     int window_border;
+    int transparency;		       /* window transparency level */
+    bool opaque_when_focused;
     int cursor_type;
     int drawtype;
     int meta_mod_mask;

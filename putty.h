@@ -558,6 +558,10 @@ enum {
     SER_FLOW_NONE, SER_FLOW_XONXOFF, SER_FLOW_RTSCTS, SER_FLOW_DSRDTR
 };
 
+enum {
+    TRANS_OFF = 0, TRANS_LOW, TRANS_MEDIUM, TRANS_HIGH
+};
+
 /*
  * Tables of string <-> enum value mappings used in settings.c.
  * Defined here so that backends can export their GSS library tables
@@ -1964,6 +1968,8 @@ NORETURN void cleanup_exit(int);
     X(BOOL, NONE, hide_mouseptr) \
     X(BOOL, NONE, sunken_edge) \
     X(INT, NONE, window_border) /* in pixels */ \
+    X(INT, NONE, transparency) \
+    X(BOOL, NONE, opaque_when_focused) \
     X(STR, NONE, answerback) \
     X(STR, NONE, printer) \
     X(BOOL, NONE, no_arabicshaping) \

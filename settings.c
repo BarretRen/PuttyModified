@@ -654,6 +654,8 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_i(sesskey, "WindowBorder", conf_get_int(conf, CONF_window_border));
     write_setting_i(sesskey, "CurType", conf_get_int(conf, CONF_cursor_type));
     write_setting_b(sesskey, "BlinkCur", conf_get_bool(conf, CONF_blink_cur));
+    write_setting_i(sesskey, "Transparency", conf_get_int(conf, CONF_transparency));
+    write_setting_b(sesskey, "OpaqueWhenFocused", conf_get_bool(conf, CONF_opaque_when_focused));
     write_setting_i(sesskey, "Beep", conf_get_int(conf, CONF_beep));
     write_setting_i(sesskey, "BeepInd", conf_get_int(conf, CONF_beep_ind));
     write_setting_filename(sesskey, "BellWaveFile", conf_get_filename(conf, CONF_bell_wavefile));
@@ -1086,6 +1088,8 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppi(sesskey, "WindowBorder", 1, conf, CONF_window_border);
     gppi(sesskey, "CurType", 0, conf, CONF_cursor_type);
     gppb(sesskey, "BlinkCur", false, conf, CONF_blink_cur);
+    gppi(sesskey, "Transparency", 0, conf, CONF_transparency);
+    gppb(sesskey, "OpaqueWhenFocused", false, conf, CONF_opaque_when_focused);
     /* pedantic compiler tells me I can't use conf, CONF_beep as an int * :-) */
     gppi(sesskey, "Beep", 1, conf, CONF_beep);
     gppi(sesskey, "BeepInd", 0, conf, CONF_beep_ind);
