@@ -70,9 +70,14 @@ typedef struct _MARGINS {
 
 #define IDM_SAVED_MIN 0x1000
 #define IDM_SAVED_MAX 0x5000
+#define IDM_SCRIPTSEND (0x5110)
+#define IDM_SCRIPTHALT (0x5120)
 #define MENU_SAVED_STEP 16
 /* Maximum number of sessions on saved-session submenu */
 #define MENU_SAVED_MAX ((IDM_SAVED_MAX-IDM_SAVED_MIN) / MENU_SAVED_STEP)
+
+#include "script_win.h"
+#include "script_win.c"
 
 #define WM_IGNORE_CLIP (WM_APP + 2)
 #define WM_FULLSCR_ON_MAX (WM_APP + 3)
@@ -157,6 +162,8 @@ static UINT wm_mousewheel = WM_MOUSEWHEEL;
 struct WinGuiSeatListNode wgslisthead = {
     .next = &wgslisthead, .prev = &wgslisthead,
 };
+
+ScriptData scriptdata;
 
 #define IS_HIGH_VARSEL(wch1, wch2) \
     ((wch1) == 0xDB40 && ((wch2) >= 0xDD00 && (wch2) <= 0xDDEF))
@@ -776,6 +783,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                        "Sa&ved Sessions");
             AppendMenu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
             AppendMenu(m, MF_SEPARATOR, 0, 0);
+            AppendMenu(m, MF_ENABLED, IDM_SCRIPTSEND, "Send &script file");
             AppendMenu(m, MF_ENABLED, IDM_COPYALL, "C&opy All to Clipboard");
             AppendMenu(m, MF_ENABLED, IDM_CLRSB, "C&lear Scrollback");
             AppendMenu(m, MF_ENABLED, IDM_RESET, "Rese&t Terminal");
@@ -2563,6 +2571,22 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             conf_free(prev_conf);
             break;
           }
+          case IDM_SCRIPTHALT:
+            script_close(&scriptdata);
+            logevent(NULL, "script stopped");
+            break;
+          case IDM_SCRIPTSEND: {
+            char scriptfilename[FILENAME_MAX]; 
+            Filename * scriptfile;
+            if(prompt_scriptfile(hwnd, scriptfilename))
+            {
+                script_init(&scriptdata, wgs);
+                scriptfile = filename_from_str(scriptfilename);
+                script_sendfile(&scriptdata, scriptfile);
+                filename_free(scriptfile);
+            }
+            break;
+          } 
           case IDM_COPYALL:
             term_copyall(wgs->term, clips_system, lenof(clips_system));
             break;
