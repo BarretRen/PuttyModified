@@ -65,6 +65,9 @@ typedef struct _MARGINS {
 #define IDM_PASTE     0x01A0
 #define IDM_SPECIALSEP 0x0200
 
+#define IDM_ZOOM        0x0320
+#define IDM_UNZOOM      0x0330
+
 #define IDM_SPECIAL_MIN 0x0400
 #define IDM_SPECIAL_MAX 0x0800
 
@@ -2586,7 +2589,34 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 filename_free(scriptfile);
             }
             break;
-          } 
+          }
+          case IDM_ZOOM: {
+            FontSpec *font = conf_get_fontspec(wgs->conf, CONF_font);
+            int fncurheight = font->height;
+            int fnfactor = 1;
+            if (fncurheight>36) fnfactor = 2;
+            else if (fncurheight>60) fnfactor = 4;
+            else if (fncurheight>100) fnfactor = 8;
+            else if (fncurheight>200) fnfactor = 12;
+            font->height = font->height + fnfactor;
+            InvalidateRect(hwnd, NULL, TRUE);
+            reset_window(wgs,2);
+          }
+          break;
+          case IDM_UNZOOM: {
+            FontSpec *font = conf_get_fontspec(wgs->conf, CONF_font);
+            int fncurheight = font->height;
+            int fnfactor = 1;
+            if (fncurheight<2) fnfactor = 0;
+            else if (fncurheight>36) fnfactor = 2;
+            else if (fncurheight>60) fnfactor = 4;
+            else if (fncurheight>100) fnfactor = 8;
+            else if (fncurheight>200) fnfactor = 12;
+            font->height = font->height - fnfactor;
+            InvalidateRect(hwnd, NULL, TRUE);
+            reset_window(wgs,2);
+          }
+          break;
           case IDM_COPYALL:
             term_copyall(wgs->term, clips_system, lenof(clips_system));
             break;
@@ -3490,7 +3520,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 } else
                     break;
 
-                if (wgs->send_raw_mouse &&
+                if (control_pressed) {
+                    if (b == MBT_WHEEL_UP)
+                        PostMessage(hwnd, WM_SYSCOMMAND, (WPARAM)IDM_ZOOM, 0);
+                    else if (b == MBT_WHEEL_DOWN)
+                        PostMessage(hwnd, WM_SYSCOMMAND, (WPARAM)IDM_UNZOOM, 0);
+                } else if (wgs->send_raw_mouse &&
                     !(conf_get_bool(wgs->conf, CONF_mouse_override) &&
                       shift_pressed)) {
                     /* Mouse wheel position is in screen coordinates for
@@ -3505,14 +3540,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                                    TO_CHR_Y(p.y), shift_pressed,
                                    control_pressed, is_alt_pressed());
                     } /* else: not sure when this can fail */
-                } else if (control_pressed) {
-                    conf_get_fontspec(wgs->conf, CONF_font)->height += MBT_WHEEL_UP == b ? 1 : -1;
-                    // short version of IDM_RECONF's reconfig:
-                    term_size(wgs->term,
-                            conf_get_int(wgs->conf, CONF_height),
-                            conf_get_int(wgs->conf, CONF_width),
-                            conf_get_int(wgs->conf, CONF_savelines));
-                    reset_window(wgs, 2);
                 } else {
                     /* trigger a scroll */
                     term_scroll(wgs->term, 0,
